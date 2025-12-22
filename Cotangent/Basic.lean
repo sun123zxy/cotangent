@@ -4,6 +4,86 @@ open Ideal
 
 namespace Submodule
 
+universe u
+
+/-
+Should use
+`Function.Surjective ⇑(Finsupp.linearCombination R v)`
+to interpret spanning sets and span Rank
+-/
+
+theorem spanRank_eq {R : Type*} {M N : Type u}
+    [CommRing R] [AddCommGroup M] [AddCommGroup N] [Module R M] [Module R N]
+    {M₁ : Submodule R M} {N₁ : Submodule R N} (e : M₁ ≃ₗ[R] N₁) :
+    M₁.spanRank = N₁.spanRank := by
+  apply le_antisymm
+  · rw [FG.spanRank_le_iff_exists_span_set_card_le]
+    symm at e
+    #check N₁.generators
+    #check N₁.generators_card
+    #check N₁.span_generators
+    sorry
+  · sorry
+
+theorem spanRank_eqₛₗ
+    {R S : Type*} {M N : Type u}
+    [CommRing R] [AddCommGroup M] [Module R M]
+    [CommRing S] [AddCommGroup N] [Module S N]
+    {σ : R →+* S} [RingHomSurjective σ] (f : M →ₛₗ[σ] N)
+    (M₁ : Submodule R M) (N₁ : Submodule S N)
+    (inj : LinearMap.ker f ⊓ M₁ = ⊥) (surj : M₁.map f = N₁) :
+    M₁.spanRank = N₁.spanRank := by
+  sorry
+#check LinearEquiv
+theorem spanRank_eqₛₗ'
+    {R S : Type*} {M N : Type u}
+    [CommRing R] [AddCommGroup M] [Module R M]
+    [CommRing S] [AddCommGroup N] [Module S N]
+    {σ : R →+* S} [RingHomSurjective σ]
+    {M₁ : Submodule R M} {N₁ : Submodule S N}
+    (f : M₁ →ₛₗ[σ] N₁) (inj : LinearMap.ker f = ⊥) (surj : LinearMap.range f = ⊤) :
+    M₁.spanRank = N₁.spanRank := by
+
+  #check LinearMap.restrict
+  sorry
+
+
+end Submodule
+
+namespace Submodule
+
+variable {R M : Type*} [CommRing R] [AddCommGroup M] [Module R M]
+         {N : Submodule R M} {I : Ideal R}
+
+noncomputable def quotientIdealSubmoduleEquivMap : (N ⧸ (I • ⊤ : Submodule R N)) ≃ₗ[R] (map (I • N).mkQ N) := by
+  refine LinearEquiv.ofBijective ?_ ⟨?_, ?_⟩
+  · refine Submodule.liftQ _ ?_ ?_
+    · exact {
+        toFun x := by
+          rcases x with ⟨x, hx⟩
+          use ((I • N).mkQ x), x, hx
+        map_add' := by simp
+        map_smul' := by simp
+      }
+    · intro x hx
+      rw [mem_smul_top_iff] at hx
+      simp [hx]
+  · rw [← LinearMap.ker_eq_bot, LinearMap.ker_eq_bot']
+    intro x hx
+    induction' x using Submodule.Quotient.induction_on with x
+    simp at hx ⊢
+    rw [mem_smul_top_iff]
+    exact hx
+  · rintro ⟨_, ⟨x, hx, rfl⟩⟩
+    use Quotient.mk ⟨x, hx⟩
+    simp
+
+#check TensorProduct.quotTensorEquivQuotSMul
+
+end Submodule
+
+namespace Submodule
+
 variable {R M : Type*} [CommRing R] [AddCommGroup M] [Module R M]
 
 theorem spanRank_eq_spanRank_map_mkQ_of_le_jacobson_bot
@@ -30,18 +110,18 @@ theorem spanRank_eq_spanRank_map_mkQ_of_le_jacobson_bot
     · rw [← hscard]
       apply Cardinal.mk_image_le
     · apply le_antisymm
-      · rw [Submodule.span_le]
+      · rw [span_le]
         grw [hs_subset]
         haveI := comap_map_mkQ (I • N) N
         rw [smul_sup_eq] at this
         -- obtain a set version of `Submodule.comap_map_mkQ`
         apply_fun fun x ↦ (x : Set M) at this
-        rw [Submodule.comap_coe, Submodule.map_coe] at this
+        rw [comap_coe, map_coe] at this
         -- return to the goal
         rw [← this, ← Set.image_subset_iff, ← Set.image_comp, mkQ_pbv_cancel]
         simp
       · apply le_span_of_map_mkQ_le_map_mkQ_span_of_le_jacobson_bot hN hIjac
-        rw [Submodule.map_span, ← Set.image_comp, mkQ_pbv_cancel]
+        rw [map_span, ← Set.image_comp, mkQ_pbv_cancel]
         simp [hsspan]
   · rw [FG.spanRank_le_iff_exists_span_set_card_le]
     rcases exists_span_set_card_eq_spanRank N with ⟨s, ⟨hscard, hsspan⟩⟩
@@ -49,14 +129,13 @@ theorem spanRank_eq_spanRank_map_mkQ_of_le_jacobson_bot
     constructor
     · rw [← hscard]
       apply Cardinal.mk_image_le
-    · rw [← Submodule.map_span, hsspan]
+    · rw [← map_span, hsspan]
 
 theorem tmp
     {I : Ideal R} {N : Submodule R M}
     (hN : N.FG) (hIjac : I ≤ jacobson ⊥) :
-    N.spanRank = (⊤ : Submodule (R ⧸ I) (N ⧸ (I • ⊤ : Submodule R N))).spanRank := by
-  haveI := spanRank_eq_spanRank_map_mkQ_of_le_jacobson_bot hN hIjac
-  -- #check Submodule (R ⧸ I) (map (I • N).mkQ N)
+    (⊤ : Submodule R (N ⧸ (I • ⊤ : Submodule R N))).spanRank = N.spanRank := by
+  rw [spanRank_eq_spanRank_map_mkQ_of_le_jacobson_bot hN hIjac]
   sorry
 
 end Submodule
@@ -67,25 +146,18 @@ variable {R : Type*} [CommRing R] [IsLocalRing R]
 
 open Submodule
 
+-- def cotangentSubmodule (I : Ideal R) : Submodule R (R ⧸ I ^ 2) :=
+--   map (I • (R ⧸ I)).mkQ (R ⧸ I ^ 2)
+
 theorem tmp' (hm : (maximalIdeal R).FG) :
-    Module.rank R (CotangentSpace R) = (maximalIdeal R).spanRank := by
+    Module.rank (ResidueField R) (CotangentSpace R) = (maximalIdeal R).spanRank := by
   rw [spanRank_eq_spanRank_map_mkQ_of_le_jacobson_bot hm (maximalIdeal_le_jacobson _)]
-  #check cotangentIdeal (maximalIdeal R)
+  rw [Submodule.rank_eq_spanRank_of_free]
+  simp
 
-  haveI : Submodule R (R ⧸ maximalIdeal R • maximalIdeal R) = Ideal (R ⧸ maximalIdeal R ^ 2) := by
-    rw [smul_eq_mul]
-    rw [pow_two]
-    unfold Ideal
-    sorry
+  -- apply Submodule.spanRank_eq
 
-  -- haveI : cotangentIdeal (maximalIdeal R) = Submodule.map (maximalIdeal R • maximalIdeal R).mkQ (maximalIdeal R) := by
-  --   unfold cotangentIdeal
-
-  --   rfl
   #check cotangentEquivIdeal
-  #check rank_eq_spanRank_of_free
-  #check pow_two
-  #check rank_eq
   sorry
 
 end IsLocalRing
