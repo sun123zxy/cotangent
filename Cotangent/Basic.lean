@@ -2,13 +2,6 @@ import Mathlib
 
 namespace Submodule
 
-/-
-Should use
-`Function.Surjective ⇑(Finsupp.linearCombination R v)`
-to interpret spanning sets and span Rank
--/
-#check LinearIndependent
-
 section
 
 open Cardinal
@@ -16,13 +9,25 @@ open Cardinal
 universe u
 variable {R : Type*} {M : Type u} [Semiring R] [AddCommMonoid M] [Module R M]
 
+#check exists_span_set_card_eq_spanRank
+theorem exists_linearCombination_card_eq_spanRank (p : Submodule R M) :
+    ∃ (ι : Type u) (v : ι → M),
+    #ι = p.spanRank ∧ p = LinearMap.range (Finsupp.linearCombination R v) := by
+  rcases exists_span_set_card_eq_spanRank p with ⟨s, hscard, hsspan⟩
+  use s, (↑)
+  constructor
+  · exact hscard
+  · rw [Finsupp.range_linearCombination, ← hsspan]
+    simp
+
 #check FG.spanRank_le_iff_exists_span_set_card_le
 #check Finsupp.range_linearCombination
 theorem spanRank_le_iff_exists_linearCombination_card_le (p : Submodule R M) {a : Cardinal} :
-    p.spanRank ≤ a ↔ ∃ (ι : Type u) (v : ι → M), #ι ≤ a ∧ p = LinearMap.range (Finsupp.linearCombination R v) := by
+    p.spanRank ≤ a ↔ ∃ (ι : Type u) (v : ι → M),
+    #ι ≤ a ∧ p = LinearMap.range (Finsupp.linearCombination R v) := by
   rw [FG.spanRank_le_iff_exists_span_set_card_le]
   constructor
-  · intro ⟨s, ⟨hscard, hsspan⟩⟩
+  · intro ⟨s, hscard, hsspan⟩
     use s, (↑)
     constructor
     · exact hscard
@@ -33,6 +38,20 @@ theorem spanRank_le_iff_exists_linearCombination_card_le (p : Submodule R M) {a 
     constructor
     · grw [Cardinal.mk_range_le, hιcard]
     · rw [hple, Finsupp.range_linearCombination]
+
+variable {N : Type u} [AddCommMonoid N] [Module R N]
+
+theorem spanRank_le_spanRank_of_map_eq {M₁ : Submodule R M} {N₁ : Submodule R N}
+  (f : N →ₗ[R] M) (h_map : map f N₁ = M₁) :
+    M₁.spanRank ≤ N₁.spanRank := by
+  rcases exists_span_set_card_eq_spanRank N₁ with ⟨s, hscard, hsspan⟩
+  rw [FG.spanRank_le_iff_exists_span_set_card_le]
+  use f '' s
+  constructor
+  · rw [← hscard]
+    exact Cardinal.mk_image_le
+  · rw [span_image', hsspan, h_map]
+
 end
 
 universe u
@@ -116,11 +135,8 @@ theorem spanRank_eq_spanRank_map_mkQ_of_le_jacobson_bot
     N.spanRank = (map (I • N).mkQ N).spanRank := by
   have smul_sup_eq : I • N ⊔ N = N := by rw [sup_eq_right]; exact smul_le_right
   apply le_antisymm
-  · rw [FG.spanRank_le_iff_exists_span_set_card_le]
-    rcases exists_span_set_card_eq_spanRank (map (I • N).mkQ N) with ⟨s, ⟨hscard, hsspan⟩⟩
-    have hs_subset : s ⊆ (map (I • N).mkQ N) := by
-      rw [← hsspan]
-      exact subset_span
+  · rcases exists_span_set_card_eq_spanRank (map (I • N).mkQ N) with ⟨s, ⟨hscard, hsspan⟩⟩
+    have hs_subset : s ⊆ map (I • N).mkQ N := by rw [← hsspan]; exact subset_span
     -- pull back `s` from N / I to N to get a spanning set of N
     let pbv := fun (y : M ⧸ I • N) ↦ Classical.choose <|
       Set.Nonempty.preimage (Set.singleton_nonempty y) (mkQ_surjective (I • N))
@@ -129,6 +145,8 @@ theorem spanRank_eq_spanRank_map_mkQ_of_le_jacobson_bot
     have mkQ_pbv_cancel : (I • N).mkQ  ∘ pbv = id := by
       funext y
       exact pbp y
+    -- show the inequality via the pulled back set
+    rw [FG.spanRank_le_iff_exists_span_set_card_le]
     use pbv '' s
     constructor
     · rw [← hscard]
@@ -136,7 +154,7 @@ theorem spanRank_eq_spanRank_map_mkQ_of_le_jacobson_bot
     · apply le_antisymm
       · rw [span_le]
         grw [hs_subset]
-        haveI := comap_map_mkQ (I • N) N
+        have := comap_map_mkQ (I • N) N
         rw [smul_sup_eq] at this
         -- obtain a set version of `Submodule.comap_map_mkQ`
         apply_fun fun x ↦ (x : Set M) at this
@@ -147,13 +165,7 @@ theorem spanRank_eq_spanRank_map_mkQ_of_le_jacobson_bot
       · apply le_span_of_map_mkQ_le_map_mkQ_span_of_le_jacobson_bot hN hIjac
         rw [map_span, ← Set.image_comp, mkQ_pbv_cancel]
         simp [hsspan]
-  · rw [FG.spanRank_le_iff_exists_span_set_card_le]
-    rcases exists_span_set_card_eq_spanRank N with ⟨s, ⟨hscard, hsspan⟩⟩
-    use mkQ (I • N) '' s
-    constructor
-    · rw [← hscard]
-      apply Cardinal.mk_image_le
-    · rw [← map_span, hsspan]
+  · exact spanRank_le_spanRank_of_map_eq (mkQ (I • N)) (by dsimp)
 
 theorem tmp
     {I : Ideal R} {N : Submodule R M}
