@@ -94,7 +94,7 @@ theorem spanRank_eq_spanRank_of_linearEquiv'
 #check AddEquiv
 #check rank_eq_of_equiv_equiv
 theorem spanRank_eq_spanRank_of_addEquiv
-    (σ : S →+* R) [RingHomSurjective σ] (e : N₁ ≃+ N₁) : M₁.spanRank = N₁.spanRank := by
+    (σ : R →+* S) [RingHomSurjective σ] (e : M₁ ≃+ N₁) : M₁.spanRank = N₁.spanRank := by
   sorry
 
 end Submodule
@@ -171,12 +171,7 @@ noncomputable def quotientIdealSubmoduleEquivMap : (N ⧸ (I • ⊤ : Submodule
 
 theorem tmp : (⊤ : Submodule R (N ⧸ (I • ⊤ : Submodule R N))).spanRank
     = (⊤ : Submodule (R ⧸ I) (N ⧸ (I • ⊤ : Submodule R N))).spanRank := by
-  #check spanRank_eq_spanRank_of_addEquiv (Ideal.Quotient.mk I)
   apply spanRank_eq_spanRank_of_addEquiv (Ideal.Quotient.mk I)
-
-  #check spanRank_eq_spanRank_of_linearEquiv (topEquiv : _ ≃ₗ[R] _)
-
-
   sorry
 
 end Submodule
