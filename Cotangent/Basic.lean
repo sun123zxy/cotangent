@@ -62,16 +62,14 @@ theorem spanRank_le_spanRank_of_range_eq
     M₁.spanRank ≤ N₁.spanRank := by
   -- obtain the spanning set of submodule `N₁`
   rcases exists_span_set_card_eq_spanRank N₁ with ⟨s, hscard, hsspan⟩
-  have s_subset : s ⊆ N₁ := by rw [← hsspan]; exact subset_span
   rw [FG.spanRank_le_iff_exists_span_set_card_le]
-  -- lift the set to a set of `N₁`
-  lift s to Set N₁ using s_subset
+  -- lift the set to a `Set N₁`
+  lift s to Set N₁ using show s ⊆ N₁ by rw [← hsspan]; exact subset_span
   rw [Cardinal.mk_image_eq Subtype.val_injective] at hscard
   change span S (N₁.subtype '' s) = N₁ at hsspan
   rw [span_image] at hsspan
   apply_fun comap N₁.subtype at hsspan
-  rw [comap_map_eq_of_injective (subtype_injective N₁) (span S s)] at hsspan
-  simp only [comap_subtype_self] at hsspan
+  rw [comap_map_eq_of_injective (subtype_injective N₁) (span S s), comap_subtype_self] at hsspan
   -- transfer the lifted set via `f` to get a spanning set of `M₁`
   use f '' s
   constructor
@@ -94,8 +92,43 @@ theorem spanRank_eq_spanRank_of_linearEquiv'
 #check AddEquiv
 #check rank_eq_of_equiv_equiv
 theorem spanRank_eq_spanRank_of_addEquiv
-    (σ : R →+* S) [RingHomSurjective σ] (e : M₁ ≃+ N₁) : M₁.spanRank = N₁.spanRank := by
-  sorry
+    (σ : R →+* S) [RingHomSurjective σ] (e : M₁ ≃+ N₁)
+    (hm : ∀ (r : R) (m : M₁), e (r • m) = (σ r) • (e m)) :
+    M₁.spanRank = N₁.spanRank := by
+  -- recover the one-side linear map
+  let e_toLinearMap : M₁ →ₛₗ[σ] N₁ := {
+      toFun := e.toFun,
+      map_add' := e.map_add',
+      map_smul' := hm
+    }
+  have e_toLinearMap_apply : ∀ x, e_toLinearMap x = e x := by intro x; rfl
+  have e_toLinearMap_injective : Function.Injective e_toLinearMap := e.injective
+  have e_toLinearMap_e_symm_cancel : e_toLinearMap ∘ e.symm = id := by unfold e_toLinearMap; simp
+  apply le_antisymm
+  · -- obtain the spanning set of submodule `N₁`
+    rcases exists_span_set_card_eq_spanRank N₁ with ⟨s, hscard, hsspan⟩
+    rw [FG.spanRank_le_iff_exists_span_set_card_le]
+    -- lift the set to a `Set N₁`
+    lift s to Set N₁ using show s ⊆ N₁ by rw [← hsspan]; exact subset_span
+    rw [Cardinal.mk_image_eq Subtype.val_injective] at hscard
+    change span S (N₁.subtype '' s) = N₁ at hsspan
+    rw [span_image] at hsspan
+    apply_fun comap N₁.subtype at hsspan
+    rw [comap_map_eq_of_injective (subtype_injective N₁) (span S s), comap_subtype_self] at hsspan
+    -- transfer the lifted set via `e.symm` to get a spanning set of `M₁`
+    use (M₁.subtype ∘ e.symm) '' s
+    -- use ((↑) ∘ e.symm) '' s
+    -- use (AddMonoidHom.comp (M₁.toAddSubmonoid.subtype) e.symm.toAddMonoidHom) '' s
+    constructor
+    · grw [Cardinal.mk_image_le]; rw [hscard]
+    · rw [Set.image_comp, span_image]
+      conv => rhs; rw [← map_subtype_top M₁]
+      congr
+      ext x; simp only [mem_top, iff_true]
+      rw [← apply_mem_span_image_iff_mem_span e_toLinearMap_injective,
+          ← Set.image_comp, e_toLinearMap_e_symm_cancel, e_toLinearMap_apply, Set.image_id, hsspan]
+      exact mem_top
+  · apply spanRank_le_spanRank_of_surjective e_toLinearMap e.surjective
 
 end Submodule
 
@@ -114,39 +147,11 @@ end Submodule
 
 namespace Submodule
 
-universe u
-
-theorem spanRank_eqₛₗ
-    {R S : Type*} {M N : Type u}
-    [CommRing R] [AddCommGroup M] [Module R M]
-    [CommRing S] [AddCommGroup N] [Module S N]
-    {σ : R →+* S} [RingHomSurjective σ] (f : M →ₛₗ[σ] N)
-    (M₁ : Submodule R M) (N₁ : Submodule S N)
-    (inj : LinearMap.ker f ⊓ M₁ = ⊥) (surj : M₁.map f = N₁) :
-    M₁.spanRank = N₁.spanRank := by
-  sorry
-
-theorem spanRank_eqₛₗ'
-    {R S : Type*} {M N : Type u}
-    [CommRing R] [AddCommGroup M] [Module R M]
-    [CommRing S] [AddCommGroup N] [Module S N]
-    {σ : R →+* S} [RingHomSurjective σ]
-    {M₁ : Submodule R M} {N₁ : Submodule S N}
-    (f : M₁ →ₛₗ[σ] N₁) (inj : LinearMap.ker f = ⊥) (surj : LinearMap.range f = ⊤) :
-    M₁.spanRank = N₁.spanRank := by
-
-  #check LinearMap.restrict
-  sorry
-
-end Submodule
-
-
-namespace Submodule
-
 variable {R M : Type*} [CommRing R] [AddCommGroup M] [Module R M]
          (N : Submodule R M) (I : Ideal R)
 
-noncomputable def quotientIdealSubmoduleEquivMap : (N ⧸ (I • ⊤ : Submodule R N)) ≃ₗ[R] (map (I • N).mkQ N) := by
+noncomputable def quotientIdealSubmoduleEquivMap :
+    (N ⧸ (I • ⊤ : Submodule R N)) ≃ₗ[R] (map (I • N).mkQ N) := by
   refine LinearEquiv.ofBijective ?_ ⟨?_, ?_⟩
   · refine Submodule.liftQ _ ?_ ?_
     · exact {
@@ -168,11 +173,6 @@ noncomputable def quotientIdealSubmoduleEquivMap : (N ⧸ (I • ⊤ : Submodule
   · rintro ⟨_, ⟨x, hx, rfl⟩⟩
     use Quotient.mk ⟨x, hx⟩
     simp
-
-theorem tmp : (⊤ : Submodule R (N ⧸ (I • ⊤ : Submodule R N))).spanRank
-    = (⊤ : Submodule (R ⧸ I) (N ⧸ (I • ⊤ : Submodule R N))).spanRank := by
-  apply spanRank_eq_spanRank_of_addEquiv (Ideal.Quotient.mk I)
-  sorry
 
 end Submodule
 
@@ -226,7 +226,6 @@ theorem spanRank_eq_spanRank_quotient_ideal_submodule
     N.spanRank = (⊤ : Submodule R (N ⧸ (I • ⊤ : Submodule R N))).spanRank := by
   rw [spanRank_eq_spanRank_map_mkQ_of_le_jacobson_bot hN hIjac]
   apply spanRank_eq_spanRank_of_linearEquiv
-
   symm
   exact LinearEquiv.trans
     (Submodule.topEquiv : _ ≃ₗ[R] (N ⧸ (I • ⊤ : Submodule R N)))
@@ -236,7 +235,9 @@ theorem spanRank_eq_spanRank_quotient_ring_quotient_ideal_submodule
     {I : Ideal R} {N : Submodule R M}
     (hN : N.FG) (hIjac : I ≤ Ideal.jacobson ⊥) :
     N.spanRank = (⊤ : Submodule (R ⧸ I) (N ⧸ (I • ⊤ : Submodule R N))).spanRank := by
-  sorry
+  rw [spanRank_eq_spanRank_quotient_ideal_submodule hN hIjac]
+  exact spanRank_eq_spanRank_of_addEquiv (Ideal.Quotient.mk I)
+    (LinearEquiv.toAddEquiv (LinearEquiv.refl R _)) (by intros; rfl)
 
 end Submodule
 
