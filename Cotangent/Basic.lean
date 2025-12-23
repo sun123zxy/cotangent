@@ -84,20 +84,30 @@ theorem spanRank_le_spanRank_of_surjective
   apply spanRank_le_spanRank_of_range_eq (M₁.subtype.comp f)
   rw [LinearMap.range_comp, LinearMap.range_eq_top_of_surjective f h_surj, map_top, range_subtype]
 
-end Submodule
+theorem spanRank_eq_spanRank_of_linearEquiv'
+    (σ : R →+* S) {σ' : S →+* R} [RingHomInvPair σ σ'] [RingHomInvPair σ' σ]
+    (e : M₁ ≃ₛₗ[σ] N₁) : M₁.spanRank = N₁.spanRank :=
+  le_antisymm
+    (spanRank_le_spanRank_of_surjective e.symm.toLinearMap e.symm.surjective)
+    (spanRank_le_spanRank_of_surjective e.toLinearMap e.surjective)
 
+#check AddEquiv
+#check rank_eq_of_equiv_equiv
+theorem spanRank_eq_spanRank_of_addEquiv
+    (σ : S →+* R) [RingHomSurjective σ] (e : N₁ ≃+ N₁) : M₁.spanRank = N₁.spanRank := by
+  sorry
+
+end Submodule
 
 namespace Submodule
 
 universe u
 variable {R : Type*} {M N : Type u}
 variable [Semiring R] [AddCommMonoid M] [AddCommMonoid N] [Module R M] [Module R N]
+variable {M₁ : Submodule R M} {N₁ : Submodule R N}
 
-theorem spanRank_eq_spanRank_of_linearEquiv {M₁ : Submodule R M} {N₁ : Submodule R N}
-    (e : M₁ ≃ₗ[R] N₁) : M₁.spanRank = N₁.spanRank :=
-  le_antisymm
-    (spanRank_le_spanRank_of_surjective e.symm.toLinearMap e.symm.surjective)
-    (spanRank_le_spanRank_of_surjective e.toLinearMap e.surjective)
+theorem spanRank_eq_spanRank_of_linearEquiv (e : M₁ ≃ₗ[R] N₁) : M₁.spanRank = N₁.spanRank :=
+  spanRank_eq_spanRank_of_linearEquiv' _ e
 
 end Submodule
 
@@ -159,6 +169,16 @@ noncomputable def quotientIdealSubmoduleEquivMap : (N ⧸ (I • ⊤ : Submodule
     use Quotient.mk ⟨x, hx⟩
     simp
 
+theorem tmp : (⊤ : Submodule R (N ⧸ (I • ⊤ : Submodule R N))).spanRank
+    = (⊤ : Submodule (R ⧸ I) (N ⧸ (I • ⊤ : Submodule R N))).spanRank := by
+  #check spanRank_eq_spanRank_of_addEquiv (Ideal.Quotient.mk I)
+  apply spanRank_eq_spanRank_of_addEquiv (Ideal.Quotient.mk I)
+
+  #check spanRank_eq_spanRank_of_linearEquiv (topEquiv : _ ≃ₗ[R] _)
+
+
+  sorry
+
 end Submodule
 
 
@@ -211,6 +231,7 @@ theorem spanRank_eq_spanRank_quotient_ideal_submodule
     N.spanRank = (⊤ : Submodule R (N ⧸ (I • ⊤ : Submodule R N))).spanRank := by
   rw [spanRank_eq_spanRank_map_mkQ_of_le_jacobson_bot hN hIjac]
   apply spanRank_eq_spanRank_of_linearEquiv
+
   symm
   exact LinearEquiv.trans
     (Submodule.topEquiv : _ ≃ₗ[R] (N ⧸ (I • ⊤ : Submodule R N)))
