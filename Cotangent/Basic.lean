@@ -36,15 +36,19 @@ theorem spanRank_le_iff_exists_linearCombination_card_le (p : Submodule R M) {a 
 
 end Submodule
 
+
 namespace Submodule
 
-open Cardinal
 universe u
-variable {R : Type*} {M : Type u} [Semiring R] [AddCommMonoid M] [Module R M]
-variable {N : Type u} [AddCommMonoid N] [Module R N]
+variable
+    {R S : Type*} {M N : Type u}
+    [Semiring R] [AddCommMonoid M] [Module R M]
+    [Semiring S] [AddCommMonoid N] [Module S N]
+    {M₁ : Submodule R M} {N₁ : Submodule S N}
 
-theorem spanRank_le_spanRank_of_map_eq {M₁ : Submodule R M} {N₁ : Submodule R N}
-    (f : N →ₗ[R] M) (h_map : map f N₁ = M₁) : M₁.spanRank ≤ N₁.spanRank := by
+theorem spanRank_le_spanRank_of_map_eq
+    {σ : S →+* R} [RingHomSurjective σ] (f : N →ₛₗ[σ] M) (h_map : map f N₁ = M₁) :
+    M₁.spanRank ≤ N₁.spanRank := by
   rcases exists_span_set_card_eq_spanRank N₁ with ⟨s, hscard, hsspan⟩
   rw [FG.spanRank_le_iff_exists_span_set_card_le]
   use f '' s
@@ -53,8 +57,8 @@ theorem spanRank_le_spanRank_of_map_eq {M₁ : Submodule R M} {N₁ : Submodule 
     exact Cardinal.mk_image_le
   · rw [span_image', hsspan, h_map]
 
-theorem spanRank_le_spanRank_of_range_eq {M₁ : Submodule R M} {N₁ : Submodule R N}
-    (f : N₁ →ₗ[R] M) (h_range : LinearMap.range f = M₁) :
+theorem spanRank_le_spanRank_of_range_eq
+    {σ : S →+* R} [RingHomSurjective σ] (f : N₁ →ₛₗ[σ] M) (h_range : LinearMap.range f = M₁) :
     M₁.spanRank ≤ N₁.spanRank := by
   -- obtain the spanning set of submodule `N₁`
   rcases exists_span_set_card_eq_spanRank N₁ with ⟨s, hscard, hsspan⟩
@@ -63,10 +67,10 @@ theorem spanRank_le_spanRank_of_range_eq {M₁ : Submodule R M} {N₁ : Submodul
   -- lift the set to a set of `N₁`
   lift s to Set N₁ using s_subset
   rw [Cardinal.mk_image_eq Subtype.val_injective] at hscard
-  change span R (N₁.subtype '' s) = N₁ at hsspan
+  change span S (N₁.subtype '' s) = N₁ at hsspan
   rw [span_image] at hsspan
   apply_fun comap N₁.subtype at hsspan
-  rw [comap_map_eq_of_injective (subtype_injective N₁) (span R s)] at hsspan
+  rw [comap_map_eq_of_injective (subtype_injective N₁) (span S s)] at hsspan
   simp only [comap_subtype_self] at hsspan
   -- transfer the lifted set via `f` to get a spanning set of `M₁`
   use f '' s
@@ -74,17 +78,33 @@ theorem spanRank_le_spanRank_of_range_eq {M₁ : Submodule R M} {N₁ : Submodul
   · grw [Cardinal.mk_image_le]; rw [hscard]
   · rw [span_image, hsspan, map_top, h_range]
 
-theorem spanRank_le_spanRank_of_surjective {M₁ : Submodule R M} {N₁ : Submodule R N}
-    (f : N₁ →ₗ[R] M₁) (h_surj : Function.Surjective f) :
+theorem spanRank_le_spanRank_of_surjective
+    {σ : S →+* R} [RingHomSurjective σ] (f : N₁ →ₛₗ[σ] M₁) (h_surj : Function.Surjective f) :
     M₁.spanRank ≤ N₁.spanRank := by
   apply spanRank_le_spanRank_of_range_eq (M₁.subtype.comp f)
   rw [LinearMap.range_comp, LinearMap.range_eq_top_of_surjective f h_surj, map_top, range_subtype]
+
+end Submodule
+
+
+namespace Submodule
+
+universe u
+variable {R : Type*} {M N : Type u}
+variable [Semiring R] [AddCommMonoid M] [AddCommMonoid N] [Module R M] [Module R N]
 
 theorem spanRank_eq_spanRank_of_linearEquiv {M₁ : Submodule R M} {N₁ : Submodule R N}
     (e : M₁ ≃ₗ[R] N₁) : M₁.spanRank = N₁.spanRank :=
   le_antisymm
     (spanRank_le_spanRank_of_surjective e.symm.toLinearMap e.symm.surjective)
     (spanRank_le_spanRank_of_surjective e.toLinearMap e.surjective)
+
+end Submodule
+
+
+namespace Submodule
+
+universe u
 
 theorem spanRank_eqₛₗ
     {R S : Type*} {M N : Type u}
@@ -95,7 +115,7 @@ theorem spanRank_eqₛₗ
     (inj : LinearMap.ker f ⊓ M₁ = ⊥) (surj : M₁.map f = N₁) :
     M₁.spanRank = N₁.spanRank := by
   sorry
-#check LinearEquiv
+
 theorem spanRank_eqₛₗ'
     {R S : Type*} {M N : Type u}
     [CommRing R] [AddCommGroup M] [Module R M]
@@ -109,6 +129,7 @@ theorem spanRank_eqₛₗ'
   sorry
 
 end Submodule
+
 
 namespace Submodule
 
@@ -139,6 +160,7 @@ noncomputable def quotientIdealSubmoduleEquivMap : (N ⧸ (I • ⊤ : Submodule
     simp
 
 end Submodule
+
 
 namespace Submodule
 
@@ -201,6 +223,7 @@ theorem spanRank_eq_spanRank_quotient_ring_quotient_ideal_submodule
   sorry
 
 end Submodule
+
 
 namespace IsLocalRing
 
