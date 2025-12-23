@@ -2,14 +2,11 @@ import Mathlib
 
 namespace Submodule
 
-section
-
 open Cardinal
 
 universe u
 variable {R : Type*} {M : Type u} [Semiring R] [AddCommMonoid M] [Module R M]
 
-#check exists_span_set_card_eq_spanRank
 theorem exists_linearCombination_card_eq_spanRank (p : Submodule R M) :
     ∃ (ι : Type u) (v : ι → M),
     #ι = p.spanRank ∧ p = LinearMap.range (Finsupp.linearCombination R v) := by
@@ -20,8 +17,6 @@ theorem exists_linearCombination_card_eq_spanRank (p : Submodule R M) :
   · rw [Finsupp.range_linearCombination, ← hsspan]
     simp
 
-#check FG.spanRank_le_iff_exists_span_set_card_le
-#check Finsupp.range_linearCombination
 theorem spanRank_le_iff_exists_linearCombination_card_le (p : Submodule R M) {a : Cardinal} :
     p.spanRank ≤ a ↔ ∃ (ι : Type u) (v : ι → M),
     #ι ≤ a ∧ p = LinearMap.range (Finsupp.linearCombination R v) := by
@@ -39,11 +34,17 @@ theorem spanRank_le_iff_exists_linearCombination_card_le (p : Submodule R M) {a 
     · grw [Cardinal.mk_range_le, hιcard]
     · rw [hple, Finsupp.range_linearCombination]
 
+end Submodule
+
+namespace Submodule
+
+open Cardinal
+universe u
+variable {R : Type*} {M : Type u} [Semiring R] [AddCommMonoid M] [Module R M]
 variable {N : Type u} [AddCommMonoid N] [Module R N]
 
 theorem spanRank_le_spanRank_of_map_eq {M₁ : Submodule R M} {N₁ : Submodule R N}
-  (f : N →ₗ[R] M) (h_map : map f N₁ = M₁) :
-    M₁.spanRank ≤ N₁.spanRank := by
+    (f : N →ₗ[R] M) (h_map : map f N₁ = M₁) : M₁.spanRank ≤ N₁.spanRank := by
   rcases exists_span_set_card_eq_spanRank N₁ with ⟨s, hscard, hsspan⟩
   rw [FG.spanRank_le_iff_exists_span_set_card_le]
   use f '' s
@@ -52,21 +53,38 @@ theorem spanRank_le_spanRank_of_map_eq {M₁ : Submodule R M} {N₁ : Submodule 
     exact Cardinal.mk_image_le
   · rw [span_image', hsspan, h_map]
 
-end
+theorem spanRank_le_spanRank_of_range_eq {M₁ : Submodule R M} {N₁ : Submodule R N}
+    (f : N₁ →ₗ[R] M) (h_range : LinearMap.range f = M₁) :
+    M₁.spanRank ≤ N₁.spanRank := by
+  -- obtain the spanning set of submodule `N₁`
+  rcases exists_span_set_card_eq_spanRank N₁ with ⟨s, hscard, hsspan⟩
+  have s_subset : s ⊆ N₁ := by rw [← hsspan]; exact subset_span
+  rw [FG.spanRank_le_iff_exists_span_set_card_le]
+  -- lift the set to a set of `N₁`
+  lift s to Set N₁ using s_subset
+  rw [Cardinal.mk_image_eq Subtype.val_injective] at hscard
+  change span R (N₁.subtype '' s) = N₁ at hsspan
+  rw [span_image] at hsspan
+  apply_fun comap N₁.subtype at hsspan
+  rw [comap_map_eq_of_injective (subtype_injective N₁) (span R s)] at hsspan
+  simp only [comap_subtype_self] at hsspan
+  -- transfer the lifted set via `f` to get a spanning set of `M₁`
+  use f '' s
+  constructor
+  · grw [Cardinal.mk_image_le]; rw [hscard]
+  · rw [span_image, hsspan, map_top, h_range]
 
-universe u
-theorem spanRank_eq {R : Type*} {M N : Type u}
-    [CommRing R] [AddCommGroup M] [AddCommGroup N] [Module R M] [Module R N]
-    {M₁ : Submodule R M} {N₁ : Submodule R N} (e : M₁ ≃ₗ[R] N₁) :
-    M₁.spanRank = N₁.spanRank := by
-  apply le_antisymm
-  · rw [FG.spanRank_le_iff_exists_span_set_card_le]
-    symm at e
-    #check N₁.generators
-    #check N₁.generators_card
-    #check N₁.span_generators
-    sorry
-  · sorry
+theorem spanRank_le_spanRank_of_surjective {M₁ : Submodule R M} {N₁ : Submodule R N}
+    (f : N₁ →ₗ[R] M₁) (h_surj : Function.Surjective f) :
+    M₁.spanRank ≤ N₁.spanRank := by
+  apply spanRank_le_spanRank_of_range_eq (M₁.subtype.comp f)
+  rw [LinearMap.range_comp, LinearMap.range_eq_top_of_surjective f h_surj, map_top, range_subtype]
+
+theorem spanRank_eq_spanRank_of_linearEquiv {M₁ : Submodule R M} {N₁ : Submodule R N}
+    (e : M₁ ≃ₗ[R] N₁) : M₁.spanRank = N₁.spanRank :=
+  le_antisymm
+    (spanRank_le_spanRank_of_surjective e.symm.toLinearMap e.symm.surjective)
+    (spanRank_le_spanRank_of_surjective e.toLinearMap e.surjective)
 
 theorem spanRank_eqₛₗ
     {R S : Type*} {M N : Type u}
@@ -90,13 +108,12 @@ theorem spanRank_eqₛₗ'
   #check LinearMap.restrict
   sorry
 
-
 end Submodule
 
 namespace Submodule
 
 variable {R M : Type*} [CommRing R] [AddCommGroup M] [Module R M]
-         {N : Submodule R M} {I : Ideal R}
+         (N : Submodule R M) (I : Ideal R)
 
 noncomputable def quotientIdealSubmoduleEquivMap : (N ⧸ (I • ⊤ : Submodule R N)) ≃ₗ[R] (map (I • N).mkQ N) := by
   refine LinearEquiv.ofBijective ?_ ⟨?_, ?_⟩
@@ -121,8 +138,6 @@ noncomputable def quotientIdealSubmoduleEquivMap : (N ⧸ (I • ⊤ : Submodule
     use Quotient.mk ⟨x, hx⟩
     simp
 
-#check TensorProduct.quotTensorEquivQuotSMul
-
 end Submodule
 
 namespace Submodule
@@ -138,6 +153,7 @@ theorem spanRank_eq_spanRank_map_mkQ_of_le_jacobson_bot
   · rcases exists_span_set_card_eq_spanRank (map (I • N).mkQ N) with ⟨s, ⟨hscard, hsspan⟩⟩
     have hs_subset : s ⊆ map (I • N).mkQ N := by rw [← hsspan]; exact subset_span
     -- pull back `s` from N / I to N to get a spanning set of N
+    -- [TODO] shall we use projective modules here?
     let pbv := fun (y : M ⧸ I • N) ↦ Classical.choose <|
       Set.Nonempty.preimage (Set.singleton_nonempty y) (mkQ_surjective (I • N))
     let pbp := fun (y : M ⧸ I • N) ↦ Classical.choose_spec <|
@@ -167,11 +183,21 @@ theorem spanRank_eq_spanRank_map_mkQ_of_le_jacobson_bot
         simp [hsspan]
   · exact spanRank_le_spanRank_of_map_eq (mkQ (I • N)) (by dsimp)
 
-theorem tmp
+theorem spanRank_eq_spanRank_quotient_ideal_submodule
     {I : Ideal R} {N : Submodule R M}
     (hN : N.FG) (hIjac : I ≤ Ideal.jacobson ⊥) :
-    (⊤ : Submodule R (N ⧸ (I • ⊤ : Submodule R N))).spanRank = N.spanRank := by
+    N.spanRank = (⊤ : Submodule R (N ⧸ (I • ⊤ : Submodule R N))).spanRank := by
   rw [spanRank_eq_spanRank_map_mkQ_of_le_jacobson_bot hN hIjac]
+  apply spanRank_eq_spanRank_of_linearEquiv
+  symm
+  exact LinearEquiv.trans
+    (Submodule.topEquiv : _ ≃ₗ[R] (N ⧸ (I • ⊤ : Submodule R N)))
+    (quotientIdealSubmoduleEquivMap N I)
+
+theorem spanRank_eq_spanRank_quotient_ring_quotient_ideal_submodule
+    {I : Ideal R} {N : Submodule R M}
+    (hN : N.FG) (hIjac : I ≤ Ideal.jacobson ⊥) :
+    N.spanRank = (⊤ : Submodule (R ⧸ I) (N ⧸ (I • ⊤ : Submodule R N))).spanRank := by
   sorry
 
 end Submodule
@@ -182,22 +208,9 @@ variable {R : Type*} [CommRing R] [IsLocalRing R]
 
 open Submodule
 
--- def cotangentSubmodule (I : Ideal R) : Submodule R (R ⧸ I ^ 2) :=
---   map (I • (R ⧸ I)).mkQ (R ⧸ I ^ 2)
-
-theorem tmp' (hm : (maximalIdeal R).FG) :
-    Module.rank (ResidueField R) (CotangentSpace R) = (maximalIdeal R).spanRank := by
-  rw [spanRank_eq_spanRank_map_mkQ_of_le_jacobson_bot hm (maximalIdeal_le_jacobson _)]
-  rw [Submodule.rank_eq_spanRank_of_free]
-  simp
-
-  -- apply Submodule.spanRank_eq
-
-  #check Ideal.cotangentEquivIdeal
-  sorry
+theorem spanrank_maximalIdeal_eq_rank_cotangentSpace (hm : (maximalIdeal R).FG) :
+    (maximalIdeal R).spanRank = Module.rank (ResidueField R) (CotangentSpace R) := by
+  rw [spanRank_eq_spanRank_quotient_ring_quotient_ideal_submodule hm (maximalIdeal_le_jacobson _),
+      Submodule.rank_eq_spanRank_of_free]
 
 end IsLocalRing
-
-#check IsLocalRing.CotangentSpace
-
-#check IsLocalRing.finrank_cotangentSpace_eq_zero
