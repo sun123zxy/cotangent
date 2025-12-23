@@ -1,17 +1,41 @@
 import Mathlib
 
-open Ideal
-
 namespace Submodule
-
-universe u
 
 /-
 Should use
 `Function.Surjective ⇑(Finsupp.linearCombination R v)`
 to interpret spanning sets and span Rank
 -/
+#check LinearIndependent
 
+section
+
+open Cardinal
+
+universe u
+variable {R : Type*} {M : Type u} [Semiring R] [AddCommMonoid M] [Module R M]
+
+#check FG.spanRank_le_iff_exists_span_set_card_le
+#check Finsupp.range_linearCombination
+theorem spanRank_le_iff_exists_linearCombination_card_le (p : Submodule R M) {a : Cardinal} :
+    p.spanRank ≤ a ↔ ∃ (ι : Type u) (v : ι → M), #ι ≤ a ∧ p = LinearMap.range (Finsupp.linearCombination R v) := by
+  rw [FG.spanRank_le_iff_exists_span_set_card_le]
+  constructor
+  · intro ⟨s, ⟨hscard, hsspan⟩⟩
+    use s, (↑)
+    constructor
+    · exact hscard
+    · rw [Finsupp.range_linearCombination, ← hsspan]
+      simp
+  · intro ⟨ι, v, hιcard, hple⟩
+    use Set.range v
+    constructor
+    · grw [Cardinal.mk_range_le, hιcard]
+    · rw [hple, Finsupp.range_linearCombination]
+end
+
+universe u
 theorem spanRank_eq {R : Type*} {M N : Type u}
     [CommRing R] [AddCommGroup M] [AddCommGroup N] [Module R M] [Module R N]
     {M₁ : Submodule R M} {N₁ : Submodule R N} (e : M₁ ≃ₗ[R] N₁) :
@@ -88,7 +112,7 @@ variable {R M : Type*} [CommRing R] [AddCommGroup M] [Module R M]
 
 theorem spanRank_eq_spanRank_map_mkQ_of_le_jacobson_bot
     {I : Ideal R} {N : Submodule R M}
-    (hN : N.FG) (hIjac : I ≤ jacobson ⊥) :
+    (hN : N.FG) (hIjac : I ≤ Ideal.jacobson ⊥) :
     N.spanRank = (map (I • N).mkQ N).spanRank := by
   have smul_sup_eq : I • N ⊔ N = N := by rw [sup_eq_right]; exact smul_le_right
   apply le_antisymm
@@ -133,7 +157,7 @@ theorem spanRank_eq_spanRank_map_mkQ_of_le_jacobson_bot
 
 theorem tmp
     {I : Ideal R} {N : Submodule R M}
-    (hN : N.FG) (hIjac : I ≤ jacobson ⊥) :
+    (hN : N.FG) (hIjac : I ≤ Ideal.jacobson ⊥) :
     (⊤ : Submodule R (N ⧸ (I • ⊤ : Submodule R N))).spanRank = N.spanRank := by
   rw [spanRank_eq_spanRank_map_mkQ_of_le_jacobson_bot hN hIjac]
   sorry
@@ -157,7 +181,7 @@ theorem tmp' (hm : (maximalIdeal R).FG) :
 
   -- apply Submodule.spanRank_eq
 
-  #check cotangentEquivIdeal
+  #check Ideal.cotangentEquivIdeal
   sorry
 
 end IsLocalRing
